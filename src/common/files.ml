@@ -15,6 +15,7 @@ type options = {
   module_file_exts: SSet.t;
   module_resource_exts: SSet.t;
   node_resolver_dirnames: string list;
+  silences: Path_matcher.t;
 }
 
 let default_lib_dir options = options.default_lib_dir
@@ -24,6 +25,7 @@ let lib_paths options = options.lib_paths
 let module_file_exts options = options.module_file_exts
 let module_resource_exts options = options.module_resource_exts
 let node_resolver_dirnames options = options.node_resolver_dirnames
+let silences options = options.silences
 
 let node_modules_containers = ref SSet.empty
 
@@ -292,6 +294,10 @@ let is_ignored (options: options) =
 (* true if a file path matches an [include] path in config *)
 let is_included options f =
   Path_matcher.matches options.includes f
+
+(* true if a file path matches a [silence] path in config *)
+let is_silenced options f =
+  Path_matcher.matches options.silences f
 
 let wanted ~options lib_fileset =
   let is_ignored_ = is_ignored options in

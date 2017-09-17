@@ -300,18 +300,20 @@ type flowconfig_params = {
    * can defer parsing of the lint settings until after the flowconfig lint settings
    * are known, to properly detect redundant settings (and avoid false positives) *)
   raw_lint_severities: string list;
+  silences: string list;
 }
 
 let list_of_string_arg = function
 | None -> []
 | Some arg_str -> Str.split (Str.regexp ",") arg_str
 
-let collect_flowconfig_flags main ignores_str includes_str lib_str lints_str =
+let collect_flowconfig_flags main ignores_str includes_str lib_str lints_str silence_str =
   let ignores = list_of_string_arg ignores_str in
   let includes = list_of_string_arg includes_str in
   let libs = list_of_string_arg lib_str in
   let raw_lint_severities = list_of_string_arg lints_str in
-  main { ignores; includes; libs; raw_lint_severities; }
+  let silences = list_of_string_arg silence_str in
+  main { ignores; includes; libs; raw_lint_severities; silences; }
 
 let file_options =
   let default_lib_dir ~no_flowlib tmp_dir =
@@ -341,6 +343,12 @@ let file_options =
       Path_matcher.add acc path
     ) Path_matcher.empty paths
   in
+  let silences_of_arg root paths =
+    List.fold_left (fun acc path ->
+      let path = Files.make_path_absolute root path in
+      Path_matcher.add acc path
+    ) Path_matcher.empty paths
+  in
   let lib_paths ~root flowconfig extras =
     let flowtyped_path = Files.get_flowtyped_path root in
     let has_explicit_flowtyped_lib = ref false in
@@ -365,7 +373,7 @@ let file_options =
     | [] -> config_libs
     | _ -> config_libs @ (List.map Path.make extras)
   in
-  fun ~root ~no_flowlib ~temp_dir ~includes ~ignores ~libs flowconfig ->
+  fun ~root ~no_flowlib ~temp_dir ~includes ~ignores ~libs ~silences flowconfig ->
     let default_lib_dir =
       let no_flowlib = no_flowlib || FlowConfig.no_flowlib flowconfig in
       Some (default_lib_dir ~no_flowlib temp_dir)
@@ -378,6 +386,10 @@ let file_options =
       includes
       |> List.rev_append (FlowConfig.includes flowconfig)
       |> includes_of_arg root in
+    let silences =
+      silences
+      |> List.rev_append (FlowConfig.silences flowconfig)
+      |> silences_of_arg root in
     { Files.
       default_lib_dir;
       ignores;
@@ -386,6 +398,7 @@ let file_options =
       module_file_exts = FlowConfig.module_file_exts flowconfig;
       module_resource_exts = FlowConfig.module_resource_exts flowconfig;
       node_resolver_dirnames = FlowConfig.node_resolver_dirnames flowconfig;
+      silences;
     }
 
 let ignore_flag prev = CommandSpec.ArgSpec.(
@@ -412,6 +425,12 @@ let lints_flag prev = CommandSpec.ArgSpec.(
     ~doc:"Specify one or more lint rules, comma separated"
 )
 
+let silence_flag prev = CommandSpec.ArgSpec.(
+  prev
+  |> flag "--silence" (optional string)
+    ~doc:"Specify one or more files/directories to silence, comma separated"
+)
+
 let flowconfig_flags prev = CommandSpec.ArgSpec.(
   prev
   |> collect collect_flowconfig_flags
@@ -419,6 +438,7 @@ let flowconfig_flags prev = CommandSpec.ArgSpec.(
   |> include_flag
   |> lib_flag
   |> lints_flag
+  |> silence_flag
 )
 
 type command_params = {
@@ -589,8 +609,8 @@ let make_options ~flowconfig ~lazy_mode ~root (options_flags: Options_flags.t) =
   let open Options_flags in
   let file_options =
     let no_flowlib = options_flags.no_flowlib in
-    let { includes; ignores; libs; raw_lint_severities=_; } = options_flags.flowconfig_flags in
-    file_options ~root ~no_flowlib ~temp_dir ~includes ~ignores ~libs flowconfig
+    let { includes; ignores; libs; raw_lint_severities=_; silences; } = options_flags.flowconfig_flags in
+    file_options ~root ~no_flowlib ~temp_dir ~includes ~ignores ~libs ~silences flowconfig
   in
   let lint_severities = parse_lints_flag
     (FlowConfig.lint_severities flowconfig) options_flags.flowconfig_flags.raw_lint_severities

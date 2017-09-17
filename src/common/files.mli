@@ -15,6 +15,7 @@ type options = {
   module_file_exts: SSet.t;
   module_resource_exts: SSet.t;
   node_resolver_dirnames: string list;
+  silences: Path_matcher.t;
 }
 
 val default_lib_dir: options -> Path.t option
@@ -24,6 +25,7 @@ val lib_paths: options -> Path.t list
 val module_file_exts: options -> SSet.t
 val module_resource_exts: options -> SSet.t
 val node_resolver_dirnames: options -> string list
+val silences: options -> Path_matcher.t
 
 val node_modules_containers: SSet.t ref
 
@@ -40,6 +42,8 @@ val is_flow_file: options: options -> string -> bool
 val is_ignored: options -> string -> bool
 (* true if a file path matches an [include] path in config *)
 val is_included: options -> string -> bool
+(* true if a file path matches a [silence] path in config *)
+val is_silenced: options -> string -> bool
 
 val is_valid_path: options: options -> string -> bool
 

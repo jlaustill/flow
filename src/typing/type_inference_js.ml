@@ -343,13 +343,29 @@ let scan_for_lint_suppressions =
     Context.set_severity_cover cx severity_cover;
     Context.set_unused_lint_suppressions cx suppression_locs
 
-let scan_for_suppressions cx base_settings comments =
-  scan_for_error_suppressions cx comments;
-  scan_for_lint_suppressions cx base_settings comments
+let scan_for_suppressions cx file_options base_settings comments =
+  let filename = File_key.to_string (Context.file cx) in
+  let silenced = match file_options with
+  | Some file_options -> Files.is_silenced file_options filename
+  | None -> false
+  in
+  if silenced then
+    (* Whole file is silenced. *)
+    (* A more "correct" solution might be to keep all the errors and instead
+     * synthesize suppressions for them. That would be a lot of work
+     * for the same end result though.
+     *)
+    Context.remove_all_errors cx
+  else
+    (* Scan comments for line suppressions. *)
+    scan_for_error_suppressions cx comments;
+    scan_for_lint_suppressions cx base_settings comments
+    ;
+  ()
 
 (* build module graph *)
 (* Lint suppressions are handled iff lint_severities is Some. *)
-let infer_ast ~lint_severities ~file_sig cx filename ast =
+let infer_ast ~file_options ~lint_severities ~file_sig cx filename ast =
   Flow_js.Cache.clear();
 
   let _, statements, comments = ast in
@@ -411,7 +427,7 @@ let infer_ast ~lint_severities ~file_sig cx filename ast =
     Flow_js.flow_t cx (init_exports, local_exports_var);
     infer_core cx statements;
 
-    scan_for_suppressions cx lint_severities comments;
+    scan_for_suppressions cx file_options lint_severities comments;
 
     let module_t = Context.(
       match Context.module_kind cx with
@@ -446,7 +462,7 @@ let infer_ast ~lint_severities ~file_sig cx filename ast =
    a) symbols from prior library loads are suppressed if found,
    b) bindings are added as properties to the builtin object
  *)
-let infer_lib_file ~metadata ~exclude_syms ~lint_severities file ast =
+let infer_lib_file ~metadata ~exclude_syms ~file_options ~lint_severities file ast =
   let _, statements, comments = ast in
   Flow_js.Cache.clear();
 
@@ -465,7 +481,7 @@ let infer_lib_file ~metadata ~exclude_syms ~lint_severities file ast =
   Env.init_env ~exclude_syms cx module_scope;
 
   infer_core cx statements;
-  scan_for_suppressions cx lint_severities comments;
+  scan_for_suppressions cx file_options lint_severities comments;
 
   module_scope |> Scope.(iter_entries Entry.(fun name entry ->
     Flow_js.set_builtin cx name (actual_type entry)

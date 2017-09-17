@@ -111,7 +111,7 @@ let main option_values root error_flags strip_root ignore_flag
         FlowExitStatus.exit ~msg FlowExitStatus.Commandline_usage_error
       );
 
-      let options = LsCommand.make_options ~root ~ignore_flag ~include_flag in
+      let options = LsCommand.make_options ~root ~ignore_flag ~include_flag ~silence_flag:None in
       let _, libs = Files.init options in
       let next_files =
         LsCommand.get_ls_files ~root ~all:false ~options ~libs ~imaginary:false (Some src)

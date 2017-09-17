@@ -14,8 +14,9 @@ val init:
   ignores: string list ->
   includes: string list ->
   libs: string list ->
-  options: string list ->
   lints: string list ->
+  options: string list ->
+  silences: string list ->
   config
 val write: config -> out_channel -> unit
 
@@ -29,6 +30,8 @@ val ignores: config -> string list
 val includes: config -> string list
 (* library paths. no wildcards *)
 val libs: config -> string list
+(* non-root paths to silence *)
+val silences: config -> string list
 
 (* options *)
 val all: config -> bool

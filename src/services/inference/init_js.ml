@@ -71,6 +71,7 @@ let load_lib_files ~master_cx ~options files =
 
       let lib_file = File_key.LibFile file in
       let lint_severities = options.Options.opt_lint_severities in
+      let file_options = Options.file_options options in
       match parse_lib_file options file with
       | Parsing.Parse_ok ast ->
 
@@ -82,7 +83,7 @@ let load_lib_files ~master_cx ~options files =
         in
 
         let cx, syms = Infer.infer_lib_file
-          ~metadata ~exclude_syms ~lint_severities
+          ~metadata ~exclude_syms ~file_options:(Some file_options) ~lint_severities
           lib_file ast
         in
 

@@ -28,6 +28,7 @@ end
 
 val merge_component_strict:
   metadata: Context.metadata ->
+  file_options: Files.options option ->
   lint_severities: Severity.severity LintSettings.t ->
   strict_mode: StrictModeSettings.t ->
   file_sigs: File_sig.t Utils_js.FilenameMap.t ->

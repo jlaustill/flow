@@ -312,6 +312,8 @@ type config = {
   strict_mode: StrictModeSettings.t;
   (* config options *)
   options: Opts.t;
+  (* non-root silence paths *)
+  silences: string list;
 }
 
 module Pp : sig
@@ -366,6 +368,9 @@ end = struct
           (string_of_severity state)))
       lint_severities
 
+  let silences o silences =
+    List.iter (fun silence -> (fprintf o "%s\n" silence)) silences
+
   let strict o config =
     let open Lints in
     let strict_mode = config.strict_mode in
@@ -390,6 +395,9 @@ end = struct
     section_header o "options";
     options o config;
     fprintf o "\n";
+    section_header o "silence";
+    silences o config.silences;
+    fprintf o "\n";
     section_header o "strict";
     strict o config
 end
@@ -400,6 +408,7 @@ let empty_config = {
   libs = [];
   lint_severities = LintSettings.default_severities;
   strict_mode = StrictModeSettings.empty;
+  silences = [];
   options = Opts.default_options
 }
 
@@ -444,6 +453,10 @@ let parse_libs config lines =
 let parse_ignores config lines =
   let ignores = trim_lines lines in
   { config with ignores; }
+
+let parse_silences config lines =
+  let silences = trim_lines lines in
+  { config with silences; }
 
 let parse_options config lines =
   let open Opts in
@@ -886,6 +899,7 @@ let parse_section config ((section_ln, section), lines) =
   | "lints", _ -> parse_lints config lines
   | "strict", _ -> parse_strict config lines
   | "options", _ -> parse_options config lines
+  | "silence", _ -> parse_silences config lines
   | "version", _ -> parse_version config lines
   | _ -> error section_ln (spf "Unsupported config section: \"%s\"" section)
 
@@ -911,17 +925,19 @@ let read filename =
     |> List.filter is_not_comment in
   parse empty_config lines
 
-let init ~ignores ~includes ~libs ~options ~lints =
+let init ~ignores ~includes ~libs ~lints ~options ~silences =
   let ignores_lines = List.map (fun s -> (1, s)) ignores in
   let includes_lines = List.map (fun s -> (1, s)) includes in
-  let options_lines = List.map (fun s -> (1, s)) options in
   let lib_lines = List.map (fun s -> (1, s)) libs in
   let lint_lines = List.map (fun s -> (1, s)) lints in
+  let options_lines = List.map (fun s -> (1, s)) options in
+  let silences_lines = List.map (fun s -> (1, s)) silences in
   let config = parse_ignores empty_config ignores_lines in
   let config = parse_includes config includes_lines in
-  let config = parse_options config options_lines in
   let config = parse_libs config lib_lines in
   let config = parse_lints config lint_lines in
+  let config = parse_options config options_lines in
+  let config = parse_silences config silences_lines in
   config
 
 let write config oc = Pp.config oc config
@@ -950,6 +966,8 @@ let ignores config = config.ignores
 let includes config = config.includes
 (* library paths. no wildcards *)
 let libs config = config.libs
+(* silence paths. no wildcards *)
+let silences config = config.silences
 
 (* options *)
 let all c = c.options.Opts.all
